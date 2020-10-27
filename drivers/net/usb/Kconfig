@@ -612,4 +612,10 @@ config USB_NET_CH9200
 	  To compile this driver as a module, choose M here: the
 	  module will be called ch9200.
 
+config USB_NET_SIMCOM
+	tristate "SIMCom USB modem modules support"
+	depends on USB_USBNET
+	help
+	  Choose this option if you're using SIMCom USB modem modules.
+
 endif # USB_NET_DRIVERS
