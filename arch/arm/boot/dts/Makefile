@@ -487,6 +487,7 @@ dtb-$(CONFIG_SOC_IMX6UL) += \
 	armadillo-640.dtb \
 	armadillo-640_con9_awl13_rtc.dtb \
 	armadillo-640_con9_thread.dtb \
+	armadillo-640_con9_sim7080g.dtb \
 	armadillo-640-at-dtweb.dtb \
 	armadillo-610-extboard-eva-grove.dtb \
 	armadillo-610-extboard-eva-lcd.dtb \

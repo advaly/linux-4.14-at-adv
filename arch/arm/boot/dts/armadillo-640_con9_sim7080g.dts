@@ -1,0 +1,142 @@
+/*
+ * Copyright (C) 2020 Advaly System, Inc. All Rights Reserved.
+ *
+ * SPDX-License-Identifier: (GPL-2.0 OR MIT)
+ */
+
+/dts-v1/;
+#define ARMADILLO640_SIM7080G
+
+#include "armadillo-640.dts"
+/ {
+	aliases {
+		rtc0 = &rtc_s35390a;
+	};
+
+	gpio-leds {
+		compatible = "gpio-leds";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_gpio_leds>;
+
+		/* LED1(User LED) */
+		led1 {
+			label = "led1";
+			gpios = <&gpio3 23 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "default-on";
+		};
+	};
+
+	regulators: regulators0 {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		/* 3.8V power for the LTE module */
+		reg_sim7080g_vbat: regulator@0 {
+			compatible = "regulator-fixed";
+			regulator-name = "SIM7080G_VBAT";
+			regulator-min-microvolt = <3800000>;
+			regulator-max-microvolt = <3800000>;
+			gpio = <&gpio3 24 GPIO_ACTIVE_HIGH>;
+			enable-active-high;
+			regulator-boot-on;
+		};
+	};
+
+	sim7080g_reset: sim7080g-reset {
+		compatible = "sim7080g-reset";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_sim7080g_reset>;
+		gpio-pwrkey = <&gpio1 23 GPIO_ACTIVE_HIGH>;
+		vbat-supply = <&reg_sim7080g_vbat>;
+	};
+
+	i2c-gpio1 {
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_i2c_gpio1>;
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "i2c-gpio";
+		gpios = <
+			&gpio1 21 GPIO_ACTIVE_HIGH	/* SDA */
+			&gpio1 20 GPIO_ACTIVE_HIGH	/* SCL */
+		>;
+		i2c-gpio,delay-us = <2>;
+
+		rtc_s35390a: rtc-s35390a {
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_rtc_s35390a>;
+
+			compatible = "s35390a";
+			reg = <0x30>;
+
+			interrupt-parent = <&gpio3>;
+			interrupts = <25 IRQ_TYPE_EDGE_FALLING>;
+		};
+
+	};
+
+	sound-mqs {
+		compatible = "fsl,imx6ul-ddr3-arm2-mqs",
+				"fsl,imx-audio-mqs";
+		model = "mqs-audio";
+		cpu-dai = <&sai1>;
+		asrc-controller = <&asrc>;
+		audio-codec = <&mqs>;
+	};
+};
+
+&iomuxc {
+	pinctrl-names = "default";
+
+	pinctrl_gpio_leds: gpioledsgrp {
+		fsl,pins = <
+			MX6UL_PAD_LCD_DATA18__GPIO3_IO23	0x00008
+		>;
+	};
+
+	pinctrl_sim7080g_reset: sim7080g_resetgrp {
+		fsl,pins = <
+			MX6UL_PAD_UART2_RTS_B__GPIO1_IO23	0x00008
+			MX6UL_PAD_LCD_DATA19__GPIO3_IO24	0x00008
+		>;
+	};
+
+	pinctrl_i2c_gpio1: i2cgpio1grp {
+		fsl,pins = <
+			MX6UL_PAD_UART2_TX_DATA__GPIO1_IO20	0x00008
+			MX6UL_PAD_UART2_RX_DATA__GPIO1_IO21	0x00008
+		>;
+	};
+
+	pinctrl_rtc_s35390a: rtcs35390agrp {
+		fsl,pins = <
+			MX6UL_PAD_LCD_DATA20__GPIO3_IO25	0x08000
+		>;
+	};
+
+	pinctrl_mqs: mqsgrp {
+		fsl,pins = <
+			MX6UL_PAD_LCD_DATA22__MQS_RIGHT		0x11088
+			MX6UL_PAD_LCD_DATA23__MQS_LEFT		0x11088
+		>;
+	};
+};
+
+&sai1 {
+	assigned-clocks = <&clks IMX6UL_CLK_SAI1_SEL>,
+			<&clks IMX6UL_CLK_PLL4_AUDIO_DIV>,
+			<&clks IMX6UL_CLK_SAI1>;
+	assigned-clock-parents = <&clks IMX6UL_CLK_PLL4_AUDIO_DIV>;
+	assigned-clock-rates = <0>, <786432000>, <24576000>;
+	status = "okay";
+};
+
+&mqs {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_mqs>;
+	clocks = <&clks IMX6UL_CLK_SAI1>;
+	clock-names = "mclk";
+	status = "okay";
+};
