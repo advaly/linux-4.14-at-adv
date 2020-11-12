@@ -140,6 +140,14 @@ config RESET_ZYNQ
 	help
 	  This enables the reset controller driver for Xilinx Zynq SoCs.
 
+config RESET_SIM7080G
+	bool "GPIO based SIMCom SIM7080G Reset Driver"
+	depends on GPIOLIB && USB_SERIAL_WWAN && OF
+	default n
+	help
+	  This enables the reset controller driver for SIMCom SIM7080G.
+
+
 source "drivers/reset/sti/Kconfig"
 source "drivers/reset/hisilicon/Kconfig"
 source "drivers/reset/tegra/Kconfig"
