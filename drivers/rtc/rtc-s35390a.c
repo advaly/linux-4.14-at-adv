@@ -274,16 +274,11 @@ static int s35390a_get_datetime(struct i2c_client *client, struct rtc_time *tm)
 	return rtc_valid_tm(tm);
 }
 
-static int s35390a_set_alarm(struct i2c_client *client, struct rtc_wkalrm *alm)
+static int s35390a_alarm_irq_enable(struct i2c_client *client, unsigned enabled)
 {
 	struct s35390a *s35390a = i2c_get_clientdata(client);
-	char buf[3], sts = 0;
-	int err, i;
-
-	dev_dbg(&client->dev, "%s: alm is secs=%d, mins=%d, hours=%d mday=%d, "\
-		"mon=%d, year=%d, wday=%d\n", __func__, alm->time.tm_sec,
-		alm->time.tm_min, alm->time.tm_hour, alm->time.tm_mday,
-		alm->time.tm_mon, alm->time.tm_year, alm->time.tm_wday);
+	char sts = 0;
+	int err;
 
 	/* disable interrupt (which deasserts the irq line) */
 	err = s35390a_set_reg(s35390a, S35390A_CMD_STATUS2, &sts, sizeof(sts));
@@ -295,7 +290,7 @@ static int s35390a_set_alarm(struct i2c_client *client, struct rtc_wkalrm *alm)
 	if (err < 0)
 		return err;
 
-	if (alm->enabled)
+	if (enabled)
 		sts = S35390A_INT2_MODE_ALARM;
 	else
 		sts = S35390A_INT2_MODE_NOINTR;
@@ -305,6 +300,22 @@ static int s35390a_set_alarm(struct i2c_client *client, struct rtc_wkalrm *alm)
 
 	/* set interupt mode*/
 	err = s35390a_set_reg(s35390a, S35390A_CMD_STATUS2, &sts, sizeof(sts));
+
+	return err;
+}
+
+static int s35390a_set_alarm(struct i2c_client *client, struct rtc_wkalrm *alm)
+{
+	struct s35390a *s35390a = i2c_get_clientdata(client);
+	char buf[3];
+	int err, i;
+
+	dev_dbg(&client->dev, "%s: alm is secs=%d, mins=%d, hours=%d mday=%d, "\
+		"mon=%d, year=%d, wday=%d\n", __func__, alm->time.tm_sec,
+		alm->time.tm_min, alm->time.tm_hour, alm->time.tm_mday,
+		alm->time.tm_mon, alm->time.tm_year, alm->time.tm_wday);
+
+	err = s35390a_alarm_irq_enable(client, alm->enabled);
 	if (err < 0)
 		return err;
 
@@ -404,6 +415,11 @@ static int s35390a_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	return s35390a_set_datetime(to_i2c_client(dev), tm);
 }
 
+static int s35390a_rtc_alarm_irq_enable(struct device *dev, unsigned enabled)
+{
+	return s35390a_alarm_irq_enable(to_i2c_client(dev), enabled);
+}
+
 static int s35390a_rtc_ioctl(struct device *dev, unsigned int cmd,
 			     unsigned long arg)
 {
@@ -439,6 +455,7 @@ static const struct rtc_class_ops s35390a_rtc_ops = {
 	.set_time	= s35390a_rtc_set_time,
 	.set_alarm	= s35390a_rtc_set_alarm,
 	.read_alarm	= s35390a_rtc_read_alarm,
+	.alarm_irq_enable = s35390a_rtc_alarm_irq_enable,
 	.ioctl          = s35390a_rtc_ioctl,
 };
 
