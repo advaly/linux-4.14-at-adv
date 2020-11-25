@@ -38,7 +38,8 @@
 /* flags for STATUS1 */
 #define S35390A_FLAG_POC	0x01
 #define S35390A_FLAG_BLD	0x02
-#define S35390A_FLAG_INT2	0x04
+#define S35390A_FLAG_INT1	0x04
+#define S35390A_FLAG_INT2	0x08
 #define S35390A_FLAG_24H	0x40
 #define S35390A_FLAG_RESET	0x80
 
@@ -461,6 +462,25 @@ static const struct rtc_class_ops s35390a_rtc_ops = {
 
 static struct i2c_driver s35390a_driver;
 
+static irqreturn_t s35390a_rtc_irq(int irq, void *dev_id)
+{
+	struct i2c_client *client = dev_id;
+	struct s35390a *s35390a = i2c_get_clientdata(client);
+	char buf[1];
+	int err;
+
+	err = s35390a_get_reg(s35390a, S35390A_CMD_STATUS1, buf, sizeof(buf));
+	if (err)
+		return IRQ_NONE;
+
+	if (buf[0] & (S35390A_FLAG_INT1 | S35390A_FLAG_INT2)) {
+		s35390a_alarm_irq_enable(client, 0);
+		rtc_update_irq(s35390a->rtc, 1, RTC_AF | RTC_IRQF);
+	}
+
+	return IRQ_HANDLED;
+}
+
 static int s35390a_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id)
 {
@@ -528,7 +548,18 @@ static int s35390a_probe(struct i2c_client *client,
 	if (err_read > 0 || s35390a_get_datetime(client, &tm) < 0)
 		dev_warn(&client->dev, "clock needs to be set\n");
 
-	device_set_wakeup_capable(&client->dev, 1);
+	if (client->irq > 0) {
+		err = devm_request_threaded_irq(&client->dev, client->irq, NULL,
+					s35390a_rtc_irq,
+					IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
+					"rtc-s35390a", client);
+		if (err) {
+			dev_err(&client->dev, "unable to request IRQ\n");
+			goto exit_dummy;
+		}
+
+		device_set_wakeup_capable(&client->dev, 1);
+	}
 
 	s35390a->rtc = devm_rtc_device_register(&client->dev,
 					s35390a_driver.driver.name,
