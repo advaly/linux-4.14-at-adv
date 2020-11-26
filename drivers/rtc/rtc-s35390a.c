@@ -652,9 +652,40 @@ static int s35390a_remove(struct i2c_client *client)
 	return 0;
 }
 
+#ifdef CONFIG_PM
+static int s35390a_suspend(struct device *dev)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+
+	if (device_may_wakeup(dev))
+		enable_irq_wake(client->irq);
+
+	return 0;
+}
+
+static int s35390a_resume(struct device *dev)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+
+	if (device_may_wakeup(dev))
+		disable_irq_wake(client->irq);
+
+	return 0;
+}
+#else
+#define s35390a_suspend	NULL
+#define s35390a_resume	NULL
+#endif  /* CONFIG_PM */
+
+static const struct dev_pm_ops s35390a_pm_ops = {
+	.suspend = s35390a_suspend,
+	.resume  = s35390a_resume,
+};
+
 static struct i2c_driver s35390a_driver = {
 	.driver		= {
 		.name	= "rtc-s35390a",
+		.pm	= &s35390a_pm_ops,
 		.of_match_table = of_match_ptr(s35390a_of_match),
 	},
 	.probe		= s35390a_probe,
