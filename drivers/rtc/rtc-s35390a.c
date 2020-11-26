@@ -395,6 +395,10 @@ static int s35390a_read_alarm(struct i2c_client *client, struct rtc_wkalrm *alm)
 	char buf[3], sts;
 	int i, err;
 
+	/* The S35390A is not be capable of secs/day/month/year fields for alarm. */
+	alm->time.tm_sec = 0;
+	alm->time.tm_mday = alm->time.tm_mon = alm->time.tm_year = -1;
+
 	err = s35390a_get_reg(s35390a, S35390A_CMD_STATUS2, &sts, sizeof(sts));
 	if (err < 0)
 		return err;
