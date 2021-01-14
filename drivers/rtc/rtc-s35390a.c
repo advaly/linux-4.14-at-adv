@@ -171,6 +171,8 @@ initialize:
 	if (ret < 0)
 		return ret;
 
+	s35390a->twentyfourhour = 1;
+
 	ret = s35390a_get_reg(s35390a, S35390A_CMD_STATUS1, &buf, 1);
 	if (ret < 0)
 		return ret;
@@ -577,29 +579,32 @@ static int s35390a_probe(struct i2c_client *client,
 		goto exit_dummy;
 	}
 
-	if (status1 & S35390A_FLAG_24H)
-		s35390a->twentyfourhour = 1;
-	else
-		s35390a->twentyfourhour = 0;
-
-	if (status1 & S35390A_FLAG_INT2) {
-		/* disable alarm (and maybe test mode) */
-		buf = 0;
-		err = s35390a_set_reg(s35390a, S35390A_CMD_STATUS2, &buf, 1);
-		if (err < 0) {
-			dev_err(&client->dev, "error disabling alarm");
-			goto exit_dummy;
-		}
+	if (err_read > 0 || s35390a_get_datetime(client, &tm) < 0) {
+		dev_warn(&client->dev, "clock needs to be set\n");
+		s35390a_init(s35390a);
 	} else {
+		if (status1 & S35390A_FLAG_24H)
+			s35390a->twentyfourhour = 1;
+		else
+			s35390a->twentyfourhour = 0;
+
+		if (status1 & (S35390A_FLAG_INT1 | S35390A_FLAG_INT2)) {
+			/* disable alarm */
+			buf = 0;
+			err = s35390a_set_reg(s35390a, S35390A_CMD_STATUS2, &buf, 1);
+			if (err < 0) {
+				dev_err(&client->dev, "error disabling alarm");
+				goto exit_dummy;
+			}
+		}
+
+		/* disable test mode */
 		err = s35390a_disable_test_mode(s35390a);
 		if (err < 0) {
 			dev_err(&client->dev, "error disabling test mode\n");
 			goto exit_dummy;
 		}
 	}
-
-	if (err_read > 0 || s35390a_get_datetime(client, &tm) < 0)
-		dev_warn(&client->dev, "clock needs to be set\n");
 
 	if (client->irq > 0) {
 		err = devm_request_threaded_irq(&client->dev, client->irq, NULL,
@@ -623,7 +628,7 @@ static int s35390a_probe(struct i2c_client *client,
 		goto exit_dummy;
 	}
 
-	if (status1 & S35390A_FLAG_INT2)
+	if (status1 & (S35390A_FLAG_INT1 |S35390A_FLAG_INT2))
 		rtc_update_irq(s35390a->rtc, 1, RTC_AF);
 
 	/* the s35390a alarm only supports a minute accuracy */
