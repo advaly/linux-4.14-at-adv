@@ -493,7 +493,8 @@ dtb-$(CONFIG_SOC_IMX6UL) += \
 	armadillo-610-at-dtweb.dtb \
 	armadillo-iotg-a6.dtb \
 	armadillo-iotg-a6-at-dtweb.dtb \
-	armadillo-iotg-a6-extboard.dtb
+	armadillo-iotg-a6-extboard.dtb \
+	armadillo-610-extboard-videodecoder.dtb
 dtb-$(CONFIG_SOC_IMX7D) += \
 	imx7d-cl-som-imx7.dtb \
 	imx7d-colibri-eval-v3.dtb \
